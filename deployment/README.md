@@ -1,4 +1,4 @@
-# Dynan Saga Campus — AWS Lab
+# Dayananda Sagar Campus — AWS Lab
 
 Architecture: HTTPS browser → Caddy/Gunicorn/Flask on EC2 → private RDS MySQL and private S3. SNS accepts a generic reminder digest; a systemd timer checks reminders at 09:00 India time.
 

@@ -1,4 +1,4 @@
-# Dynan Saga Campus
+# Dayananda Sagar Campus
 
 **Dayananda Sagar College of Engineering**
 Information Science & Engineering · Cloud Computing Laboratory Project
