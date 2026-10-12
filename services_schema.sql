@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS fees (
+ fee_id INT PRIMARY KEY AUTO_INCREMENT, regd_no VARCHAR(50) NOT NULL,
+ description VARCHAR(150) NOT NULL, amount DECIMAL(12,2) NOT NULL,
+ paid_amount DECIMAL(12,2) NOT NULL DEFAULT 0, due_date DATE NOT NULL,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ INDEX fees_student(regd_no), CHECK(amount>0), CHECK(paid_amount>=0 AND paid_amount<=amount)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS fee_payments (
+ payment_id INT PRIMARY KEY AUTO_INCREMENT,fee_id INT NOT NULL,amount DECIMAL(12,2) NOT NULL,
+ reference VARCHAR(100) NOT NULL UNIQUE,recorded_by VARCHAR(50) NOT NULL,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, INDEX payments_fee(fee_id), CHECK(amount>0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS notifications (
+ notification_id INT PRIMARY KEY AUTO_INCREMENT,regd_no VARCHAR(50) NOT NULL,kind VARCHAR(30) NOT NULL,
+ title VARCHAR(150) NOT NULL,message TEXT NOT NULL,dedup_key VARCHAR(191) NOT NULL UNIQUE,
+ is_read BOOLEAN NOT NULL DEFAULT 0,cloud_status VARCHAR(30) NOT NULL DEFAULT 'Pending',
+ cloud_message_id VARCHAR(100),created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ INDEX notifications_student(regd_no,is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

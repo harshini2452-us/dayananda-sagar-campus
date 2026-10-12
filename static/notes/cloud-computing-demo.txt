@@ -1,0 +1,9 @@
+Dayananda Sagar College of Engineering
+Information Science & Engineering
+Cloud Computing — Course Notes
+
+1. IaaS supplies virtual infrastructure; PaaS supplies a managed runtime; SaaS supplies a complete application.
+2. Amazon EC2 hosts virtual machines for application deployment.
+3. Amazon RDS manages relational databases such as MySQL.
+4. Amazon S3 stores objects such as lecture notes and documents.
+5. A Flask campus portal can use EC2 for compute, RDS for records and S3 for learning files.

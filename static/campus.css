@@ -1,0 +1,27 @@
+
+.navbar-brand img { width: 240px; height: auto; object-fit: contain; }
+.navbar-brand div { max-width: 230px; }
+.home-footer .footer-logo { flex-wrap: wrap; }
+.home-footer .footer-logo img { width: 250px; height: auto; background: white; padding: 8px; border-radius: 6px; }
+.campus-hero { max-width: 1080px; min-height: 290px; margin: 0 auto 36px; padding: 42px;
+  border-radius: 20px; color: white; display: flex; align-items: center;
+  background: linear-gradient(90deg, rgba(5,27,54,.9), rgba(5,27,54,.22)), url('images/dsce-campus.jpg') center/cover;
+  box-shadow: 0 16px 35px rgba(20,45,80,.18); }
+.campus-hero p { font-size: 16px; margin-bottom: 16px; }
+.campus-hero h1 { max-width: 640px; font-size: clamp(26px,4vw,44px); font-weight: 700; }
+.campus-hero span { font-size: 15px; }
+.page-title { font-size: 2rem; margin-bottom: 24px; }
+.logo-section { flex-direction: column; gap: 3px; margin-bottom: 6px; }
+.logo-section img { width: 270px; height: 49px; object-fit: contain; }
+.logo-section .college-text h3 { display: none; }
+.logo-section .college-text p { font-size: 11px; text-align: center; }
+.id-details { margin-left: 20px; }
+.instructions-text { width: auto; }
+@media(max-width:760px) {
+ .navbar .container-fluid { flex-wrap: wrap; gap: 8px; justify-content: center; }
+ .navbar-brand { flex-wrap: wrap; justify-content: center; }
+ .navbar-brand img { width: 215px; }
+ .navbar-brand div { max-width: 100%; white-space: normal; }
+ .main-wrapper { margin-top: 150px; }
+ .campus-hero { padding: 25px; min-height: 240px; }
+}

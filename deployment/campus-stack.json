@@ -1,0 +1,451 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "DSCE CC lab: Flask EC2 + private RDS MySQL + private S3 + SNS, daily reminder timer and direct HTTPS. Upload release after stack creation.",
+  "Parameters": {
+    "Image": {
+      "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+      "Default": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+    }
+  },
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.30.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true
+      }
+    },
+    "Gateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {}
+    },
+    "AttachGateway": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "InternetGatewayId": {
+          "Ref": "Gateway"
+        }
+      }
+    },
+    "WebSubnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": "10.30.1.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": true
+      }
+    },
+    "DatabaseSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": "10.30.10.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false
+      }
+    },
+    "DatabaseSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": "10.30.11.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "MapPublicIpOnLaunch": false
+      }
+    },
+    "PublicRoutes": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        }
+      }
+    },
+    "InternetRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRoutes"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "Gateway"
+        }
+      },
+      "DependsOn": "AttachGateway"
+    },
+    "RouteAssociation": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "WebSubnet"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRoutes"
+        }
+      }
+    },
+    "WebSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "HTTPS campus portal and HTTP certificate validation. No SSH or MySQL inbound.",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "DatabaseSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "MySQL from campus server only",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3306,
+            "ToPort": 3306,
+            "SourceSecurityGroupId": {
+              "Ref": "WebSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "DatabaseSubnets": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "Private campus database subnets",
+        "SubnetIds": [
+          {
+            "Ref": "DatabaseSubnetA"
+          },
+          {
+            "Ref": "DatabaseSubnetB"
+          }
+        ]
+      }
+    },
+    "Database": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "Engine": "mysql",
+        "DBInstanceClass": "db.t3.micro",
+        "AllocatedStorage": "20",
+        "StorageType": "gp3",
+        "StorageEncrypted": true,
+        "DBName": "institute_db",
+        "MasterUsername": "campusmaster",
+        "ManageMasterUserPassword": true,
+        "DBSubnetGroupName": {
+          "Ref": "DatabaseSubnets"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Ref": "DatabaseSecurityGroup"
+          }
+        ],
+        "PubliclyAccessible": false,
+        "MultiAZ": false,
+        "BackupRetentionPeriod": 0,
+        "DeletionProtection": false
+      },
+      "DeletionPolicy": "Delete",
+      "UpdateReplacePolicy": "Delete"
+    },
+    "Files": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        }
+      },
+      "DeletionPolicy": "Delete",
+      "UpdateReplacePolicy": "Delete"
+    },
+    "PortalCredentials": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "GenerateSecretString": {
+          "SecretStringTemplate": "{\"username\":\"campus\"}",
+          "GenerateStringKey": "password",
+          "PasswordLength": 32,
+          "ExcludePunctuation": true
+        }
+      },
+      "DeletionPolicy": "Delete"
+    },
+    "AppDatabaseCredentials": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "GenerateSecretString": {
+          "SecretStringTemplate": "{\"username\":\"campus\"}",
+          "GenerateStringKey": "password",
+          "PasswordLength": 32,
+          "ExcludePunctuation": true
+        }
+      },
+      "DeletionPolicy": "Delete"
+    },
+    "NotificationTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "DisplayName": "DSCE Campus Notifications"
+      }
+    },
+    "ServerRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+          }
+        ],
+        "Policies": [
+          {
+            "PolicyName": "CampusResourcesOnly",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "${Files.Arn}/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "s3:ListBucket",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Files",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "sns:Publish",
+                  "Resource": {
+                    "Ref": "NotificationTopic"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "secretsmanager:GetSecretValue",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "Database",
+                        "MasterUserSecret.SecretArn"
+                      ]
+                    },
+                    {
+                      "Ref": "PortalCredentials"
+                    },
+                    {
+                      "Ref": "AppDatabaseCredentials"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ServerProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Roles": [
+          {
+            "Ref": "ServerRole"
+          }
+        ]
+      }
+    },
+    "Address": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc"
+      },
+      "DependsOn": "AttachGateway"
+    },
+    "Server": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": {
+          "Ref": "Image"
+        },
+        "InstanceType": "t3.micro",
+        "SubnetId": {
+          "Ref": "WebSubnet"
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "WebSecurityGroup"
+          }
+        ],
+        "IamInstanceProfile": {
+          "Ref": "ServerProfile"
+        },
+        "MetadataOptions": {
+          "HttpTokens": "required"
+        },
+        "CreditSpecification": {
+          "CPUCredits": "standard"
+        },
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+              "VolumeSize": 12,
+              "VolumeType": "gp3",
+              "Encrypted": true,
+              "DeleteOnTermination": true
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DSCE-Campus"
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Sub": "#!/bin/bash\nset -eu\nexec > /var/log/campus-bootstrap.log 2>&1\ndnf install -y python3 python3-pip python3-devel gcc mariadb105-devel pkgconf-pkg-config unzip\nuseradd --system --home-dir /opt/campus --shell /sbin/nologin campus || true\nmkdir -p /opt/campus /etc/campus\nchmod 700 /etc/campus\npython3 -m venv /opt/campus/.venv\n/opt/campus/.venv/bin/pip install boto3\ncat > /etc/campus/bootstrap.json <<'CONFIG'\n{\"region\":\"${AWS::Region}\",\"bucket\":\"${Files}\",\"database_host\":\"${Database.Endpoint.Address}\",\"master_secret\":\"${Database.MasterUserSecret.SecretArn}\",\"app_secret\":\"${AppDatabaseCredentials}\",\"portal_secret\":\"${PortalCredentials}\",\"sns_topic\":\"${NotificationTopic}\",\"portal_url\":\"https://${Address}.sslip.io\"}\nCONFIG\ncat > /etc/systemd/system/campus-install.service <<'SERVICE'\n[Unit]\nDescription=Install uploaded campus release\nAfter=network-online.target\nWants=network-online.target\n[Service]\nType=oneshot\nExecStart=/opt/campus/.venv/bin/python /opt/campus/install-release.py\nRestart=on-failure\nRestartSec=30\nStartLimitIntervalSec=0\n[Install]\nWantedBy=multi-user.target\nSERVICE\ncat > /opt/campus/install-release.py <<'PYTHON'\nimport json,boto3,zipfile,subprocess,pathlib,os\nc=json.load(open('/etc/campus/bootstrap.json'))\ns3=boto3.client('s3',region_name=c['region'])\ns3.download_file(c['bucket'],'deployment/campus-release.zip','/opt/campus/release.zip')\nwith zipfile.ZipFile('/opt/campus/release.zip') as z:z.extractall('/opt/campus')\nsubprocess.run(['/opt/campus/.venv/bin/pip','install','-r','/opt/campus/requirements.txt'],check=True)\nsubprocess.run(['/opt/campus/.venv/bin/python','/opt/campus/deployment/configure_server.py'],check=True)\nPYTHON\nsystemctl daemon-reload\nsystemctl enable --now campus-install.service\n"
+          }
+        }
+      },
+      "DependsOn": [
+        "InternetRoute",
+        "RouteAssociation"
+      ]
+    },
+    "BindAddress": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "Address",
+            "AllocationId"
+          ]
+        },
+        "InstanceId": {
+          "Ref": "Server"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "Website": {
+      "Value": {
+        "Fn::Sub": "https://${Address}.sslip.io"
+      }
+    },
+    "FilesBucket": {
+      "Value": {
+        "Ref": "Files"
+      }
+    },
+    "ServerId": {
+      "Value": {
+        "Ref": "Server"
+      }
+    },
+    "PortalLoginSecret": {
+      "Value": {
+        "Ref": "PortalCredentials"
+      }
+    },
+    "NotificationTopic": {
+      "Value": {
+        "Ref": "NotificationTopic"
+      }
+    },
+    "DatabaseEndpoint": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "Endpoint.Address"
+        ]
+      }
+    }
+  }
+}

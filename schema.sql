@@ -1,0 +1,14 @@
+
+CREATE TABLE IF NOT EXISTS students (student_id INT PRIMARY KEY AUTO_INCREMENT, regd_no VARCHAR(50) UNIQUE NOT NULL, name VARCHAR(150), aadhaar VARCHAR(20) UNIQUE, email VARCHAR(150) UNIQUE, phone VARCHAR(20), gender VARCHAR(20), dob DATE, branch VARCHAR(20), year INT, photo LONGBLOB, photo_type VARCHAR(100), blood_group VARCHAR(10), address TEXT);
+CREATE TABLE IF NOT EXISTS teachers (teacher_id INT PRIMARY KEY AUTO_INCREMENT, regd_no VARCHAR(50) UNIQUE NOT NULL, full_name VARCHAR(150), aadhaar VARCHAR(20) UNIQUE, gender VARCHAR(20), date_of_birth DATE, address TEXT, blood_group VARCHAR(10), phone VARCHAR(20), email VARCHAR(150) UNIQUE, designation VARCHAR(100), qualification VARCHAR(150), experience_years INT, date_of_joining DATE, photo LONGBLOB, salary DECIMAL(10,2), photo_type VARCHAR(100), department VARCHAR(100));
+CREATE TABLE IF NOT EXISTS student_login (id INT PRIMARY KEY AUTO_INCREMENT, regd_no VARCHAR(50) UNIQUE, email VARCHAR(150), password VARCHAR(255));
+CREATE TABLE IF NOT EXISTS teacher_login (id INT PRIMARY KEY AUTO_INCREMENT, regd_no VARCHAR(50) UNIQUE, email VARCHAR(150), password VARCHAR(255));
+CREATE TABLE IF NOT EXISTS institute_login (id INT PRIMARY KEY AUTO_INCREMENT, regd_no VARCHAR(50) UNIQUE, password VARCHAR(255));
+CREATE TABLE IF NOT EXISTS branches (id INT PRIMARY KEY, branch_name VARCHAR(20));
+CREATE TABLE IF NOT EXISTS years (id INT PRIMARY KEY, year_name VARCHAR(20));
+CREATE TABLE IF NOT EXISTS subjects (subject_id INT PRIMARY KEY AUTO_INCREMENT, subject_name VARCHAR(100), subject_code VARCHAR(50), branch VARCHAR(20), year INT, password VARCHAR(255));
+CREATE TABLE IF NOT EXISTS exams (id INT PRIMARY KEY AUTO_INCREMENT, exam_name VARCHAR(100), year_id INT, branch_id INT, exam_password VARCHAR(255));
+CREATE TABLE IF NOT EXISTS attendance (attendance_id INT PRIMARY KEY AUTO_INCREMENT, regd_no VARCHAR(50), subject_id INT, attendance_date DATE, status VARCHAR(20), teacher_name VARCHAR(150), UNIQUE KEY attendance_once(regd_no,subject_id,attendance_date));
+CREATE TABLE IF NOT EXISTS internal_marks (id INT PRIMARY KEY AUTO_INCREMENT, regd_no VARCHAR(50), subject_id INT, exam_id INT, marks_obtained INT, teacher_name VARCHAR(150), UNIQUE KEY marks_once(regd_no,subject_id,exam_id));
+CREATE TABLE IF NOT EXISTS notices (id INT PRIMARY KEY AUTO_INCREMENT, notice_number VARCHAR(60) UNIQUE, title VARCHAR(150), subject VARCHAR(150), purpose VARCHAR(150), declared_by VARCHAR(150), department VARCHAR(100), description TEXT, drive_link TEXT, is_active BOOLEAN DEFAULT TRUE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS subject_notes (id INT PRIMARY KEY AUTO_INCREMENT, branch VARCHAR(20), year VARCHAR(30), subject_name VARCHAR(100), chapter_name VARCHAR(150), summary TEXT, uploaded_by_name VARCHAR(150), uploaded_by_id VARCHAR(50), notes_link TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);

@@ -1,0 +1,18 @@
+__pycache__/
+.vscode/
+*.pyc
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+.local/
+/deployment/database.sql
+*.zip
+*.pem
+*.key
+*.log
+# Local machine launchers and private account instructions
+/DEMO.md
+/launch_demo.py
+/Start Demo.cmd
